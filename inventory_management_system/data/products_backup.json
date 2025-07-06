@@ -1,0 +1,44 @@
+[
+    {
+        "product_id": 1,
+        "name": "Laptop",
+        "category": "Electronics",
+        "price": 999.99,
+        "stock_quantity": 10
+    },
+    {
+        "product_id": 2,
+        "name": "Smartphone",
+        "category": "Electronics",
+        "price": 499.99,
+        "stock_quantity": 25
+    },
+    {
+        "product_id": 3,
+        "name": "Headphones",
+        "category": "Accessories",
+        "price": 149.99,
+        "stock_quantity": 50
+    },
+    {
+        "product_id": 4,
+        "name": "Desk Chair",
+        "category": "Furniture",
+        "price": 199.99,
+        "stock_quantity": 5
+    },
+    {
+        "product_id": 5,
+        "name": "Mouse",
+        "category": "Accessories",
+        "price": 19.99,
+        "stock_quantity": 100
+    },
+    {
+        "product_id": "test",
+        "name": "test",
+        "category": "test",
+        "price": 200.0,
+        "stock_quantity": 200
+    }
+]

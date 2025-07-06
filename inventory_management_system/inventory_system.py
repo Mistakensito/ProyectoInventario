@@ -1,6 +1,7 @@
 from product import Product
 from user import User
 from role_permission import RolePermission
+import random
 import streamlit as st
 import pandas as pd
 
@@ -33,25 +34,64 @@ class InventorySystem:
         st.subheader("Sistema de Inventario Masas y Empanadas Ayelén")
 
     def display_product_management(self):
-        st.subheader("Manejo de productos")
+        st.markdown(
+            """
+            <div style='margin: 0px; padding: 0px;'>
+                <h3 style='margin: 0px; padding: 0px;'>Manejo de productos</h3>
+                <hr style='margin-top: 16px; margin-bottom: 16px;' />
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
         with st.container():
-            # Boton de añadir producto en la esquina superior derecha
-            col1, col2 = st.columns([4, 1])
-            with col2:
-                if st.session_state.get("role", "user") == "admin":
-                    if st.button("Añadir producto", key="add_product_button_main"):
-                        st.session_state.page = "add_product"  # Muestra la pagina de añadir productos
-
             # Muestra los filtros de productos
-            filter_column, value_column = st.columns([2, 4])
+            filter_column, value_column, button_column = st.columns([2, 4, 1.65])
             with filter_column:
                 filter_option = st.selectbox("Buscar por", ["ID de producto", "Nombre de producto", "Categoría", "Cantidad en stock"])
             with value_column:
                 filter_value = st.text_input(f"Enter {filter_option}", "")
+            with button_column:
+                st.markdown("<div style='margin-top: 28px;'>", unsafe_allow_html=True)
+                filter_button = st.button("Filtrar productos", key="filter_products_button")
+                st.markdown("</div>", unsafe_allow_html=True)
 
-            filter_button = st.button("Filtrar productos", key="filter_products_button")
-            filtered_data = self.product_manager.products
+            st.markdown(
+                """ <hr style='margin-top: 8px; margin-bottom: 8px;' /> """,
+                unsafe_allow_html=True
+            )
+
+            # Muestra selector de sucursal y añadir producto
+            branch_column, add_column = st.columns([1, 1])
+            with branch_column:
+                branch_options = ["Sucursal 1", "Sucursal 2", "Sucursal 3"]
+                branch_option = st.selectbox("Buscar por", branch_options)
+
+                # Guardar el índice en session_state
+                st.session_state.branch = branch_options.index(branch_option)
+                if 'last_branch' not in st.session_state:
+                    st.session_state.last_branch = st.session_state.branch
+
+                if st.session_state.branch != st.session_state.last_branch:
+                    st.session_state.pop("original_stock_quantity", None)
+                    st.session_state.pop("original_stock_map", None)
+                    st.session_state.last_branch = st.session_state.branch
+            with add_column:
+                if st.session_state.get("role", "user") == "admin":
+                    st.markdown("<div style='margin-top: 28px;'>", unsafe_allow_html=True)
+                    if st.button("Añadir producto", key="add_product_button_main"):
+                        st.session_state.page = "add_product"  # Muestra la pagina de añadir productos
+                    st.markdown("</div>", unsafe_allow_html=True)
+
+            st.markdown(
+                """ <hr style='margin-top: 8px; margin-bottom: 8px;' /> """,
+                unsafe_allow_html=True
+            )
+
+            if "filtered_data" not in st.session_state:
+                st.session_state.filtered_data = self.product_manager.products
+            
+            filtered_data = st.session_state.filtered_data
 
             if filter_button:
                 # Añadir filtrado basado en input del usuario
@@ -73,23 +113,53 @@ class InventorySystem:
             if len(filtered_data) == 0:
                 st.write("No se encontró productos.")
             else:
-                for product in filtered_data:
-                    product_row = f"**{product['name']}** - {product['category']} - {product['price']} CLP"
-                    col1, col2, col3 = st.columns([4, 2, 2])
-                    
-                    with col1:
-                        st.write(product_row)
-                    with col2:
-                        if st.session_state.get("role", "user") == "admin":
-                            if st.button("Actualizar", key=f"update_button_{product['product_id']}"):
-                                st.session_state.product_id_to_update = product['product_id']
-                                st.session_state.page = "update_product"  # Redirige a la pagina de actualizacion
+                original_df = pd.DataFrame(filtered_data).copy()
 
-                    with col3:
-                        if st.session_state.get("role", "user") == "admin":
-                            if st.button("Eliminar", key=f"delete_button_{product['product_id']}"):
-                                st.session_state.page = "delete_product"  # Redirige a la pagina de borrado
-                                self.delete_product(product['product_id'])  # Inicia el borrado
+                # Elige los datos de la sucursal elegida
+                if "original_stock_quantity" not in st.session_state:
+                    st.session_state.original_stock_quantity = [
+                        {"product_id": row["product_id"], "stock_quantity": row["stock_quantity"]}
+                        for _, row in original_df.iterrows()
+                    ]
+                if "original_stock_map" not in st.session_state:
+                    st.session_state.original_stock_map = {item["product_id"]: item["stock_quantity"] for item in st.session_state.original_stock_quantity}
+                original_stock_map = st.session_state.original_stock_map
+
+                original_df["stock_quantity"] = original_df["stock_quantity"].apply(lambda lista: lista[st.session_state.branch])
+
+                # Editor interactivo
+                edited_df = st.data_editor(
+                    original_df,
+                    column_config={
+                        "product_id": None,
+                        "name": "Producto",
+                        "category": "Categoría",
+                        "price": "Precio",
+                        "stock_quantity": "Cantidad",
+                        "sales_history": st.column_config.LineChartColumn(
+                            "Ventas (últimos 30 días)", y_min=0, y_max=100000
+                        ),
+                    },
+                    disabled=["product_id", "sales_history"],
+                    hide_index=True,
+                )
+
+                # Comparar y actualizar
+                for i, row in edited_df.iterrows():
+                    original_row = original_df.loc[i]
+
+                    if not row.equals(original_row):
+                        # Cuando hubo un cambio, guarda la fila cambiada
+                        product_id = original_row["product_id"]
+                        updated_product = row.to_dict()
+                        updated_product["product_id"] = product_id
+
+                        # Copia el nuevo stock en la sucursal especifica
+                        updated_stock_map = original_stock_map[product_id]
+                        updated_stock_map[st.session_state.branch] = updated_product["stock_quantity"]
+                        updated_product["stock_quantity"] = updated_stock_map
+
+                        self.product_manager.update_product(product_id, updated_product)
 
     def display_add_product_form(self):
         st.subheader("Añadir nuevo producto")

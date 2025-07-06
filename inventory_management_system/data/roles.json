@@ -10,15 +10,8 @@
         ]
     },
     {
-        "role_id": 2,
-        "name": "user",
-        "permission_level": [
-            "view_product"
-        ]
-    },
-    {
-        "role_id": "3",
-        "name": "accountant",
+        "role_id": "2",
+        "name": "personal",
         "permission_level": [
             "view_user",
             "view_roles",

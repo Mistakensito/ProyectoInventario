@@ -37,9 +37,18 @@ def check_session_status():
         st.session_state.logged_in = False
 
 def display_sidebar(role):
-    st.sidebar.title("Sistema de Inventario")
+    st.sidebar.image("data/logo.png", use_container_width=True)
+    st.sidebar.markdown(
+        """
+        <div style='margin: 0px; padding: 0px;'>
+            <h3 style='margin: 0px; padding: 0px;'>Sistema de Inventario</h3>
+            <hr style='margin-top: 16px; margin-bottom: 16px;' />
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
     # Button to Home
-    if st.sidebar.button("Home"):
+    if st.sidebar.button("Inicio"):
         st.session_state.page = "home"
 
     if role == "admin":
@@ -60,10 +69,22 @@ def display_sidebar(role):
         if st.sidebar.button("Ver productos"):
             st.session_state.page = "product_management"
 
+    if st.sidebar.button("Cerrar sesíon"):
+        st.session_state.clear()  # Limpiar sesion basado en estado de sesion
+        st.query_params = {}  # Limpiar query
+        st.rerun()
+
 def display_modules():
     
     if 'page' not in st.session_state:
-        st.session_state.page = "home" 
+        st.session_state.page = "home"
+    if 'last_page' not in st.session_state:
+        st.session_state.last_page = st.session_state.page
+
+    # Reiniciando algunos datos estaticos
+    if st.session_state.page != st.session_state.last_page:
+        st.session_state.pop("filtered_data", None)
+        st.session_state.last_page = st.session_state.page
 
     # Iniciar sistema de inventario
     inventory_system = InventorySystem()
@@ -100,12 +121,6 @@ def main():
         role = st.session_state.get("role", "user")
         # Mostrar sidebar
         display_sidebar(role)
-
-        # Boton de logout para salir de la sesion
-        if st.button("Logout"):
-            st.session_state.clear()  # Limpiar sesion basado en estado de sesion
-            st.query_params = {}  # Limpiar query
-            st.rerun()
         
         # Mostrar modulos
         display_modules()
