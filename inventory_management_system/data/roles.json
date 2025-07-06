@@ -1,0 +1,28 @@
+[
+    {
+        "role_id": 1,
+        "name": "admin",
+        "permission_level": [
+            "add_product",
+            "edit_product",
+            "delete_product",
+            "view_product"
+        ]
+    },
+    {
+        "role_id": 2,
+        "name": "user",
+        "permission_level": [
+            "view_product"
+        ]
+    },
+    {
+        "role_id": "3",
+        "name": "accountant",
+        "permission_level": [
+            "view_user",
+            "view_roles",
+            "view_product"
+        ]
+    }
+]
