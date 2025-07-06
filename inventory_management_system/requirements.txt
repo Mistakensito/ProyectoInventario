@@ -1,12 +1,2 @@
-inventory_management_system/
-│
-├── main.py                     # Interfaz de Streamlit
-├── inventory_system.py         # Coordina los tablas
-├── product.py                  # Tabla de productos
-├── user.py                     # Tabla de usuarios
-├── role_permission.py          # Tabla de roles
-├── data/
-│   ├── products.json           # JSON con datos de productos
-│   ├── users.json              # JSON con datos de usuarios
-│   └── roles.json              # JSON con datos de roles
-└── requirements.txt            # Requerimientos de la app
+streamlit
+pandas
