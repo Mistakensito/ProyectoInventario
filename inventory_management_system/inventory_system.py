@@ -1,6 +1,9 @@
 from product import Product
 from user import User
 from role_permission import RolePermission
+from yamlmanager import YamlManager
+from pathlib import Path
+import yaml
 import random
 import streamlit as st
 import pandas as pd
@@ -10,6 +13,7 @@ class InventorySystem:
         self.product_manager = Product()
         self.user_manager = User()
         self.role_permission_manager = RolePermission()
+        self.yaml_manager = YamlManager()
 
     def validate_fields(self, fields):
         """
@@ -21,13 +25,11 @@ class InventorySystem:
             # Revisa los strings
             if value in [None, '']:  # Verifica que el string no esté vacio
                 return f"{field.replace('_', ' ').capitalize()} es requerido."
-
             # Additional specific field validations
             if field == "price" and value <= 0:
                 return "El precio debe ser mayor a 0."
             if field == "stock_quantity" and value < 0:
                 return "El stock debe ser mayor a 0."
-        
         return None  # No hay errores
 
     def display_home(self):
@@ -91,7 +93,7 @@ class InventorySystem:
 
             if "filtered_data" not in st.session_state:
                 st.session_state.filtered_data = self.product_manager.products
-            
+
             filtered_data = st.session_state.filtered_data
 
             if filter_button:
@@ -185,7 +187,7 @@ class InventorySystem:
                 add_button = st.form_submit_button(label='Añadir producto')
             with col2:
                 cancel_button = st.form_submit_button(label='Cancelar')
-                
+
             if add_button:
                 validation_error = self.validate_fields({
                     "product_id": product_id,
@@ -209,13 +211,13 @@ class InventorySystem:
                     }
                     self.product_manager.add_product(new_product)
                     st.success(f"Producto '{name}' ha sido añadido correctamente!")
-                    
+
                     st.session_state.page = "product_management"  # Redirige a control de producto
                     st.rerun()  # Inicia el rerun
             elif cancel_button:
                 # Si se preciona cancelar, se vuelve al inicio
                 st.session_state.page = "product_management"
-                st.rerun()        
+                st.rerun()
 
     def display_update_product_form(self):
         if st.session_state.product_id_to_update:
@@ -245,7 +247,7 @@ class InventorySystem:
                         })
                         # Validate form fields before adding the product
                         # validation_error = self.validate_product_fields(product_id, name, category, price, stock_quantity)
-                        
+
                         if validation_error:
                             st.error(validation_error)
                         else:
@@ -267,7 +269,7 @@ class InventorySystem:
                     elif cancel_button:
                         # Si se cancela, se regresa a manejo de producto
                         st.session_state.page = "product_management"
-                        st.rerun()  
+                        st.rerun()
 
     def delete_product(self, product_id):
         # Muestra la confirmación de borrado
@@ -286,133 +288,120 @@ class InventorySystem:
     def display_user_management(self):
         st.subheader("Control de usuarios")
 
-        with st.container():
-            # Add User button with a unique key
-            col1, col2 = st.columns([4, 1])
+        # Add User button
+        if st.session_state.get("role") == "admin":
+            if st.button("Añadir usuario", key="add_user_button"):
+                st.session_state.page = "add_user"
+                st.rerun()
+
+        # User list with CRUD operations
+        users = self.yaml_manager.list_users()
+        for username in users:
+            user = users[username]
+            col1, col2, col3 = st.columns([4, 2, 2])
+
+            with col1:
+                st.write(f"**{username}** - {user['role']} ({user['email']})")
+
             with col2:
-                if st.session_state.get("role", "user") == "admin":
-                    if st.button("Añadir usuario", key="unique_add_user_button"):  # Asegura una key aleatoria unica
-                        st.session_state.page = "add_user"  # Redirige a la página de añadir usuario
+                if st.button(f"Editar", key=f"edit_{username}"):
+                    st.session_state.editing_user = username
+                    st.session_state.page = "edit_user"
+                    st.rerun()
 
-            # Muestra filtros de usuario
-            filter_column, value_column = st.columns([2, 4])
-            with filter_column:
-                filter_option = st.selectbox("Buscar por", ["ID de usuario", "Nombre de usuario", "Rol"])
-            with value_column:
-                filter_value = st.text_input(f"Ingrese {filter_option}", "")
-
-            filter_button = st.button("Filtrar usuarios", key="filter_users_button")  # Ensure unique key
-            filtered_data = self.user_manager.users
-
-            if filter_button:
-                # Aplica filtro basado en el input
-                if filter_option == "ID de usuario":
-                    filtered_data = [usr for usr in filtered_data if "user_id" in usr and str(filter_value).lower() in str(usr["user_id"]).lower()]
-                elif filter_option == "Nombre de usuario":
-                    filtered_data = [usr for usr in filtered_data if "username" in usr and str(filter_value).lower() in str(usr["username"]).lower()]
-                elif filter_option == "Rol":
-                    filtered_data = [usr for usr in filtered_data if "role" in usr and str(filter_value).lower() in str(usr["role"]).lower()]
-
-            # Muestra los resultados del filtro
-            if len(filtered_data) == 0:
-                st.write("No se encontraron usuario.")
-            else:
-                for idx, user in enumerate(filtered_data):
-                    # Busca por user_id para evitar errores de llave
-                    if "user_id" in user:
-                        user_row = f"**{user.get('username', 'Usuario desconocido')}** - {user.get('role', 'Sin rol')}"
-                        col1, col2, col3 = st.columns([4, 2, 2])
-                        
-                        with col1:
-                            st.write(user_row)
-                        with col2:
-                            if st.session_state.get("role", "user") == "admin":
-                                # Ensure unique key for each button in the loop
-                                if st.button("Actualizar", key=f"update_user_{user['user_id']}_{idx}"):
-                                    st.session_state.user_id_to_update = user['user_id']
-                                    st.session_state.page = "update_user"  # Redirect to update page
-                        with col3:
-                            if st.session_state.get("role", "user") == "admin":
-                                # Ensure unique key for each button in the loop
-                                if st.button("Eliminar", key=f"delete_user_{user['user_id']}_{idx}"):
-                                    self.delete_user(user['user_id'])
-                    else:
-                        st.error("Usuario no tiene ID. Revisar consistencia en los datos.")
+            with col3:
+                if st.button(f"Eliminar", key=f"delete_{username}"):
+                    try:
+                        self.yaml_manager.delete_user(username)
+                        st.success(f"Usuario {username} eliminado")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(str(e))
 
     def display_add_user_form(self):
         st.subheader("Añadir nuevo usuario")
 
         with st.form(key='add_user_form'):
-            user_id = st.text_input("ID de usuario")
             username = st.text_input("Nombre de usuario")
-            role = st.text_input("Rol")
-            # Botones para añadir y para cancelar
-            col1, col2 = st.columns(2)
-            with col1:
-                add_button = st.form_submit_button(label='Añadir usuario')
-            with col2:
-                cancel_button = st.form_submit_button(label='Cancelar')
+            email = st.text_input("Email")
+            name = st.text_input("Nombre completo")
+            password = st.text_input("Contraseña", type="password")
+            role = st.selectbox("Rol", ["admin", "user"])
 
-            if add_button:
-                # Add the user to user manager
-                new_user = {
-                    "user_id": user_id,
-                    "username": username,
-                    "role": role
-                }
-                self.user_manager.add_user(new_user)
-                st.success(f"Usuario '{username}' añadido correctamente!")
+            if st.form_submit_button("Guardar"):
+                try:
+                    self.yaml_manager.add_user(username, {
+                        "email": email,
+                        "name": name,
+                        "password": password,  # Remember to hash this in production
+                        "role": role
+                    })
+                    st.success("Usuario creado exitosamente!")
+                    st.session_state.page = "user_management"
+                    st.rerun()
+                except Exception as e:
+                    st.error(str(e))
 
-                st.session_state.page = "user_management"  # Redirige a manejo de usuario
-                st.rerun()  # Recarga la pagina
-            elif cancel_button:
-                # Si se cancela, se vuelve a control de usuarios
+            if st.form_submit_button("Cancelar"):
                 st.session_state.page = "user_management"
                 st.rerun()
 
-    def display_update_user_form(self):
-        if "user_id_to_update" in st.session_state:
-            user_id = st.session_state.user_id_to_update
-            user = self.user_manager.get_user_by_id(user_id)
+    def display_edit_user_form(self):
+        st.subheader("Editar usuario")
 
-            if user:
-                st.subheader("Actualizar usuario")
-                col1, col2 = st.columns(2)
-                with st.form(key="update_user_form"):
-                    username = st.text_input("Nombre de usuario", value=user["username"])
-                    role = st.text_input("Rol", value=user["role"])
-                    submit_col, cancel_col = st.columns(2)
-                    with submit_col:
-                        submit_button = st.form_submit_button(label="Actualizar usuario")
-                    with cancel_col:
-                        cancel_button = st.form_submit_button(label="Cancelar")
-                    if submit_button:
+        if 'editing_user' not in st.session_state:
+            st.error("No se ha seleccionado ningún usuario para editar")
+            st.session_state.page = "user_management"
+            st.rerun()
+            return
+
+        username = st.session_state.editing_user
+        user = self.yaml_manager.get_user(username)
+
+        if not user:
+            st.error(f"Usuario {username} no encontrado")
+            st.session_state.page = "user_management"
+            st.rerun()
+            return
+
+        with st.form(key=f'edit_user_form_{username}'):
+            new_username = st.text_input("Nombre de usuario", value=username)
+            email = st.text_input("Email", value=user['email'])
+            name = st.text_input("Nombre completo", value=user['name'])
+            password = st.text_input("Nueva contraseña (dejar vacío para mantener la actual)",
+                                    type="password", value="")
+            role = st.selectbox("Rol", ["admin", "user"],
+                               index=0 if user['role'] == "admin" else 1)
+
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.form_submit_button("Guardar cambios"):
+                    try:
                         updated_user = {
-                            "user_id": user_id,
-                            "username": username,
+                            "email": email,
+                            "name": name,
                             "role": role
                         }
-                        self.user_manager.update_user(user_id, updated_user)
-                        st.success(f"Usuario '{username}' actualizado correctamente!")
+
+                        if password:
+                            updated_user["password"] = password  # Remember to hash this!
+
+                        if new_username != username:
+                            self.yaml_manager.delete_user(username)
+                            self.yaml_manager.add_user(new_username, {**user, **updated_user})
+                        else:
+                            self.yaml_manager.update_user(username, updated_user)
+
+                        st.success("Usuario actualizado correctamente!")
                         st.session_state.page = "user_management"
                         st.rerun()
-                    elif cancel_button:
-                        st.session_state.page = "user_management"
-                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error al actualizar usuario: {str(e)}")
 
-
-    def delete_user(self, user_id):
-        user = self.user_manager.get_user_by_id(user_id)
-
-        if user:
-            st.warning(f"Seguro que quieres eliminar a '{user['username']}'?")
-            confirm_delete = st.button("Confirmar", key=f"confirm_delete_user_{user_id}")
-
-            if confirm_delete:
-                self.user_manager.delete_user(user_id)
-                st.success(f"Usuario '{user['username']}' eliminado correctamente!")
-                st.session_state.page = "user_management"
-                #st.rerun()
+            with col2:
+                if st.form_submit_button("Cancelar"):
+                    st.session_state.page = "user_management"
+                    st.rerun()
 
     def display_role_permission_management(self):
         st.subheader("Control de roles y permisos.")
@@ -446,7 +435,7 @@ class InventorySystem:
                     if "role_id" in role:
                         role_row = f"**{role.get('role_id', 'ID desconocido')}** - {role.get('name', 'Nombre desconocido')}"
                         col1, col2, col3 = st.columns([4, 2, 2])
-                        
+
                         with col1:
                             st.write(role_row)
                         with col2:

@@ -1,59 +1,61 @@
-import json
-import streamlit as st
+import yaml
+import streamlit_authenticator as stauth
+
 
 class User:
-    def __init__(self, data_file="data/users.json"):
-        self.data_file = data_file
-        self.load_data()
+    def __init__(self, config_path="config.yaml"):
+        self.config_path = config_path
+        self.load_users()
 
-    def clear_json_file(self):
-        """Overwrite the JSON file with an empty list."""
-        with open(self.data_file, "w") as file:
-            json.dump([], file)
+    def load_users(self):
+        with open(self.config_path, "r") as f:
+            self.config = yaml.safe_load(f)
 
-    def verify_login(self, username, password):
-        #users = self.load_users()
-        self.load_data()
-        for user in self.users:
-            if user["username"] == username and user["password"] == password:
-                return user["role"]
-        return None
-    
-    def load_data(self):
-        with open(self.data_file, "r") as file:
-            self.users = json.load(file)
+    def save_users(self):
+        with open(self.config_path, "w") as f:
+            yaml.dump(self.config, f, default_flow_style=False)
 
-    def save_data(self):
-        with open(self.data_file, "w") as file:
-            json.dump(self.users, file, indent=4)
+    @property
+    def users(self):
+        return [
+            {
+                "user_id": username,
+                "username": user["name"],
+                "role": user["role"]
+            }
+            for username, user in self.config["credentials"]["usernames"].items()
+        ]
+
+    def get_user_by_id(self, user_id):
+        return self.config["credentials"]["usernames"].get(user_id, None)
 
     def add_user(self, user):
-        self.users.append(user)
-        self.save_data()
+        username = user["user_id"]
+        hashed_password = stauth.Hasher([user["password"]]).generate()[0]
+        self.config["credentials"]["usernames"][username] = {
+            "name": user["username"],
+            "email": user.get("email", ""),
+            "password": hashed_password,
+            "role": user["role"]
+        }
+        self.save_users()
 
     def update_user(self, user_id, updated_user):
-        for idx, usr in enumerate(self.users):
-            if usr["user_id"] == user_id:
-                self.users[idx].update(updated_user)
-                self.save_data()
-                return True
+        if user_id in self.config["credentials"]["usernames"]:
+            user_entry = self.config["credentials"]["usernames"][user_id]
+            user_entry["name"] = updated_user["username"]
+            user_entry["role"] = updated_user["role"]
+            if "password" in updated_user and updated_user["password"]:
+                user_entry["password"] = stauth.Hasher([updated_user["password"]]).generate()[0]
+            if "email" in updated_user:
+                user_entry["email"] = updated_user["email"]
+            self.save_users()
+            return True
         return False
 
     def delete_user(self, user_id):
-        # Clear the JSON file first
-        self.clear_json_file()
-        self.users = [usr for usr in self.users if usr["user_id"] != user_id]
-        st.write(self.users)
-        self.save_data()
-
-    def search_users(self, query):
-        return [usr for usr in self.users if query.lower() in usr["username"].lower()]
-    
-    def get_user_by_id(self, user_id):
-        
-        for usr in self.users:
-            if usr["user_id"] == user_id:
-                return usr
-        return None
-
-    
+        if user_id in self.config["credentials"]["usernames"]:
+            del self.config["credentials"]["usernames"][user_id]
+            self.save_users()
+            return True
+        return False
