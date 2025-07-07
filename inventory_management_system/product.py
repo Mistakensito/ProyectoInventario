@@ -1,13 +1,17 @@
 import json
 
 class Product:
-    def __init__(self, data_file="data/products.json"):
+    def __init__(self, data_file="data/products.json", update_sales_history_file="data/last_sale_history.json"):
         self.data_file = data_file
+        self.update_sales_history_file = update_sales_history_file
         self.load_data()
 
     def load_data(self):
         with open(self.data_file, "r") as file:
             self.products = json.load(file)
+        with open(self.update_sales_history_file, "r") as file:    
+            self.last_update = json.load(file)
+            self.last_date_update = self.last_update["date"]
 
     def save_data(self):
         with open(self.data_file, "w") as file:
@@ -24,6 +28,10 @@ class Product:
                 self.save_data()
                 return True
         return False
+    
+    def update_date(self, date):
+        with open(self.update_sales_history_file, "w") as file:
+            json.dump(date, file, indent=4)
 
     def delete_product(self, product_id):
         # Filtra los productos con el mismo product_id

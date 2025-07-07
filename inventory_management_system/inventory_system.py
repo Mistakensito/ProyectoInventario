@@ -3,6 +3,8 @@ from user import User
 from role_permission import RolePermission
 from yamlmanager import YamlManager
 from pathlib import Path
+import time
+from datetime import datetime
 import streamlit as st
 import pandas as pd
 
@@ -48,7 +50,7 @@ class InventorySystem:
             # Muestra los filtros de productos
             filter_column, value_column, button_column = st.columns([2, 4, 1.65])
             with filter_column:
-                filter_option = st.selectbox("Buscar por", ["ID de producto", "Nombre de producto", "Categoría", "Cantidad en stock"])
+                filter_option = st.selectbox("Buscar por", ["ID de producto", "Nombre de producto", "Categoría"])
             with value_column:
                 filter_value = st.text_input(f"Enter {filter_option}", "")
             with button_column:
@@ -94,13 +96,6 @@ class InventorySystem:
                     filtered_data = [prod for prod in filtered_data if str(filter_value).lower() in str(prod["name"]).lower()]
                 elif filter_option == "Categoría":
                     filtered_data = [prod for prod in filtered_data if str(filter_value).lower() in str(prod["category"]).lower()]
-                elif filter_option == "Cantidad en stock":
-                    try:
-                        filter_value_int = int(filter_value)
-                        filtered_data = [prod for prod in filtered_data if prod["stock_quantity"] == filter_value_int]
-                    except ValueError:
-                        st.error("Ingrese un valor de stock valido.")
-                        filtered_data = []
 
             # Muestra los productos encontrados
             if len(filtered_data) == 0:
@@ -124,6 +119,7 @@ class InventorySystem:
                     original_df,
                     column_config={
                         "product_id": None,
+                        "last_sales_history": None,
                         "name": "Producto",
                         "category": "Categoría",
                         "price": "Precio",
@@ -140,9 +136,39 @@ class InventorySystem:
                 # Comparar y actualizar
                 has_changes = False
 
+                # Calcular días transcurridos desde ultima actualizacion
+                current_seconds = int(time.time())
+                seconds_passed = current_seconds - self.product_manager.last_date_update
+                days_passed = int(seconds_passed // 86400) # segundos en un día
+
                 for i, row in edited_df.iterrows():
                     original_row = original_df.loc[i]
 
+                    # Actualiza todos los sales_history para estar al día
+                    if days_passed >= 1:
+                        new_sales_history = []
+                        product_id = original_row["product_id"]
+                        updated_product = row.to_dict()
+                        updated_product["product_id"] = product_id
+                        updated_product.pop("add_or_sell", None)
+                        updated_product["stock_quantity"] = original_stock_map[product_id]
+
+                        if days_passed >= 30:
+                            new_sales_history = [0] * (30 - 1)
+                        else:
+                            # cortar los días pasados viejos
+                            new_sales_history = updated_product["sales_history"][days_passed:]
+                            # añadir los días pasados nuevos
+                            new_sales_history += [0] * (30 - len(new_sales_history) - 1)
+                        updated_product["sales_history"] = new_sales_history
+                        self.product_manager.update_product(product_id, updated_product)
+                        self.product_manager.update_date(
+                            {
+                                "date": current_seconds
+                            }
+                        )
+                        has_changes = True
+                    
                     if not row.equals(original_row):
                         # Cuando hubo un cambio, guarda la fila cambiada
                         product_id = original_row["product_id"]
@@ -155,6 +181,10 @@ class InventorySystem:
                         if updated_product["add_or_sell"] != "":
                             updated_stock_map[st.session_state.branch] = int(updated_product["stock_quantity"]) + int(updated_product["add_or_sell"])
                         updated_product["stock_quantity"] = updated_stock_map
+
+                        # Si fue una venta
+                        if int(updated_product["add_or_sell"]) < 0:
+                            updated_product["sales_history"][-1] += abs(int(updated_product["add_or_sell"]))
 
                         # Quitar columnas extras para evitar subirlos a BDD
                         updated_product.pop("add_or_sell", None)

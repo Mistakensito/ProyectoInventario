@@ -3,9 +3,9 @@
         "product_id": "1",
         "name": "Laptop",
         "category": "Electronics",
-        "price": 999.99,
+        "price": 10000.0,
         "stock_quantity": [
-            600,
+            1000,
             20.0,
             0.0
         ],
@@ -220,7 +220,7 @@
         "category": "testeo",
         "price": 8000.0,
         "stock_quantity": [
-            1020.0,
+            1120,
             22.0,
             220.0
         ],
@@ -263,9 +263,40 @@
         "category": "Utencilios",
         "price": 2300.0,
         "stock_quantity": [
-            0,
+            -1800,
             34,
             0
+        ],
+        "sales_history": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            2000
         ]
     }
 ]
