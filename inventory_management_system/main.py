@@ -80,14 +80,6 @@ def display_modules():
         return
     if 'page' not in st.session_state:
         st.session_state.page = "home"
-    if 'last_page' not in st.session_state:
-        st.session_state.last_page = st.session_state.page
-
-    # Reiniciando algunos datos estaticos
-    if st.session_state.page != st.session_state.last_page:
-        st.session_state.pop("filtered_data", None)
-        st.session_state.pop("original_stock_quantity", None)
-        st.session_state.last_page = st.session_state.page
 
     # Iniciar sistema de inventario
     inventory_system = InventorySystem()

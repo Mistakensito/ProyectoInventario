@@ -50,3 +50,19 @@ class Product:
             if prod["product_id"] == product_id:
                 return prod
         return None
+    
+    def get_next_product_id(self):
+        # Obtener el mayor ID numérico directamente
+        ids = []
+        for prod in self.products:
+            try:
+                ids.append(int(prod["product_id"]))
+            except (ValueError, TypeError):
+                continue
+
+        if not ids:
+            return "1"
+        
+        next_product_id = max(ids) + 1
+
+        return str(next_product_id)

@@ -3,8 +3,6 @@ from user import User
 from role_permission import RolePermission
 from yamlmanager import YamlManager
 from pathlib import Path
-import yaml
-import random
 import streamlit as st
 import pandas as pd
 
@@ -74,11 +72,6 @@ class InventorySystem:
                 if 'last_branch' not in st.session_state:
                     st.session_state.last_branch = st.session_state.branch
 
-                # Recarga datos cuando se cambia de sucursal (para estar sincronizados)
-                if st.session_state.branch != st.session_state.last_branch:
-                    st.session_state.pop("filtered_data", None)
-                    st.session_state.pop("original_stock_quantity", None)
-                    st.session_state.last_branch = st.session_state.branch
             with add_column:
                 if st.session_state.get("role", "user") == "admin":
                     st.markdown("<div style='margin-top: 28px;'>", unsafe_allow_html=True)
@@ -91,10 +84,7 @@ class InventorySystem:
                 unsafe_allow_html=True
             )
 
-            if "filtered_data" not in st.session_state:
-                st.session_state.filtered_data = self.product_manager.products
-
-            filtered_data = st.session_state.filtered_data
+            filtered_data = self.product_manager.products
 
             if filter_button:
                 # Añadir filtrado basado en input del usuario
@@ -117,24 +107,17 @@ class InventorySystem:
                 st.write("No se encontró productos.")
             else:
                 # Elige los datos de la sucursal elegida
-                if "original_df" not in st.session_state:
-                    st.session_state.original_df = pd.DataFrame(filtered_data).copy()
-                    st.session_state.original_df["stock_quantity"] = original_df["stock_quantity"].apply(lambda lista: lista[st.session_state.branch])
+                original_df = pd.DataFrame(filtered_data).copy()
                 
                 # Guarda temporalmente los stocks por sucursal
-                if "original_stock_quantity" not in st.session_state:
-                    # Crea la tabla con datos temporales
-                    st.session_state.original_df = pd.DataFrame(filtered_data).copy()
-                    original_stock_quantity = [
-                        {"product_id": row["product_id"], "stock_quantity": row["stock_quantity"]}
-                        for _, row in st.session_state.original_df.iterrows()
-                    ]
-                    st.session_state.original_stock_quantity = {item["product_id"]: item["stock_quantity"] for item in original_stock_quantity}
-                    # Solo deja el stock de la sucursal actual
-                    st.session_state.original_df["stock_quantity"] = st.session_state.original_df["stock_quantity"].apply(lambda lista: lista[st.session_state.branch])
+                original_stock_quantity = [
+                    {"product_id": row["product_id"], "stock_quantity": row["stock_quantity"]}
+                    for _, row in original_df.iterrows()
+                ]
+                original_stock_map = {item["product_id"]: item["stock_quantity"] for item in original_stock_quantity}
 
-                original_df = st.session_state.original_df
-                original_stock_map = st.session_state.original_stock_quantity
+                original_df["stock_quantity"] = original_df["stock_quantity"].apply(lambda lista: lista[st.session_state.branch])
+                original_df["add_or_sell"] = ["" for _ in range(len(original_df))]
 
                 # Editor interactivo
                 edited_df = st.data_editor(
@@ -148,12 +131,15 @@ class InventorySystem:
                         "sales_history": st.column_config.LineChartColumn(
                             "Ventas (últimos 30 días)", y_min=0, y_max=100000
                         ),
+                        "add_or_sell": "Añadir o Vender",
                     },
-                    disabled=["product_id", "sales_history"],
+                    disabled=["product_id", "sales_history", "stock_quantity"],
                     hide_index=True,
                 )
 
                 # Comparar y actualizar
+                has_changes = False
+
                 for i, row in edited_df.iterrows():
                     original_row = original_df.loc[i]
 
@@ -166,22 +152,46 @@ class InventorySystem:
                         # Copia el nuevo stock en la sucursal especifica
                         # Combinandolo con los stocks de las otras sucursales
                         updated_stock_map = original_stock_map[product_id]
-                        updated_stock_map[st.session_state.branch] = updated_product["stock_quantity"]
+                        if updated_product["add_or_sell"] != "":
+                            updated_stock_map[st.session_state.branch] = int(updated_product["stock_quantity"]) + int(updated_product["add_or_sell"])
                         updated_product["stock_quantity"] = updated_stock_map
+
+                        # Quitar columnas extras para evitar subirlos a BDD
+                        updated_product.pop("add_or_sell", None)
 
                         # Añade los cambios
                         self.product_manager.update_product(product_id, updated_product)
+                        has_changes = True
+
+                if has_changes:
+                    st.rerun()
 
     def display_add_product_form(self):
         st.subheader("Añadir nuevo producto")
 
+        # Crear nuevo ID incremental
+        product_id = self.product_manager.get_next_product_id()
+
         with st.form(key='add_product_form_unique'):
-            product_id = st.text_input("ID de producto", placeholder="Ingrese ID de producto")
+            st.text_input("ID de producto (auto)", value=product_id, disabled=True)
+
             name = st.text_input("Nombre de producto", placeholder="Ingrese nombre de producto")
             category = st.text_input("Categoría de producto", placeholder="Ingrese categoría de producto")
             price = st.number_input("Precio de producto", min_value=0.01, step=0.01, placeholder="Ingrese precio de producto")
-            stock_quantity = st.number_input("Cantidad en stock", min_value=0, step=1, placeholder="Ingrese cantidad de stock")
-            # Añadir un boton de añadir y uno de cancelar
+
+            # Selector de sucursal
+            branch_names = ["Sucursal 1", "Sucursal 2", "Sucursal 3"]
+            branch_name = st.selectbox("Sucursal de ingreso de stock", branch_names)
+            branch_id = branch_names.index(branch_name)
+
+            stock_quantity_input = st.number_input(
+                label=f"Cantidad en stock",
+                min_value=0,
+                step=1,
+                placeholder="Ingrese cantidad de stock",
+            )
+
+            # Botones
             col1, col2 = st.columns(2)
             with col1:
                 add_button = st.form_submit_button(label='Añadir producto')
@@ -194,14 +204,16 @@ class InventorySystem:
                     "name": name,
                     "category": category,
                     "price": price,
-                    "stock_quantity": stock_quantity
+                    "stock_quantity": stock_quantity_input
                 })
 
-                # Valida antes de añadir producto
                 if validation_error:
                     st.error(validation_error)
                 else:
-                    # Add the product to product manager
+                    # Construir lista de stock por sucursal (3 sucursales)
+                    stock_quantity = [0, 0, 0]
+                    stock_quantity[branch_id] = stock_quantity_input
+
                     new_product = {
                         "product_id": product_id,
                         "name": name,
@@ -209,13 +221,14 @@ class InventorySystem:
                         "price": price,
                         "stock_quantity": stock_quantity
                     }
+
                     self.product_manager.add_product(new_product)
                     st.success(f"Producto '{name}' ha sido añadido correctamente!")
 
-                    st.session_state.page = "product_management"  # Redirige a control de producto
-                    st.rerun()  # Inicia el rerun
+                    # Redirigir
+                    st.session_state.page = "product_management"
+                    st.rerun()
             elif cancel_button:
-                # Si se preciona cancelar, se vuelve al inicio
                 st.session_state.page = "product_management"
                 st.rerun()
 

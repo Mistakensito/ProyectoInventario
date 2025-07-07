@@ -5,7 +5,7 @@
         "category": "Electronics",
         "price": 999.99,
         "stock_quantity": [
-            100.0,
+            600,
             20.0,
             0.0
         ],
@@ -48,8 +48,8 @@
         "category": "Electronics",
         "price": 499.99,
         "stock_quantity": [
-            250.0,
-            12.0,
+            550,
+            212,
             3.0
         ],
         "sales_history": [
@@ -134,7 +134,7 @@
         "category": "Furniture",
         "price": 199.99,
         "stock_quantity": [
-            200.0,
+            100,
             0.0,
             2.0
         ],
@@ -217,8 +217,8 @@
     {
         "product_id": "6",
         "name": "test",
-        "category": "test",
-        "price": 800.0,
+        "category": "testeo",
+        "price": 8000.0,
         "stock_quantity": [
             1020.0,
             22.0,
@@ -255,6 +255,17 @@
             16110,
             74580,
             70108
+        ]
+    },
+    {
+        "product_id": "7",
+        "name": "Tenedor",
+        "category": "Utencilios",
+        "price": 2300.0,
+        "stock_quantity": [
+            0,
+            34,
+            0
         ]
     }
 ]
