@@ -1,0 +1,21 @@
+credentials:
+  usernames:
+    admin:
+      email: admin@example.com
+      name: NOMBRE TEST
+      password: admin1
+      role: admin
+    user:
+      email: user@example.com
+      name: Regular User
+      password: user123
+      role: user
+    LLEEL:
+      email: testX@gmail.com
+      name: test1XX
+      password: test
+      role: admin
+cookie:
+  name: inventory_cookie
+  key: some_random_signature_key_12345
+  expiry_days: 30

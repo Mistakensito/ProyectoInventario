@@ -1,0 +1,17 @@
+credentials:
+  usernames:
+    admin:
+      email: admin@example.com
+      name: Admin User
+      password: admin  # hashed "admin"
+      role: admin
+    personal:
+      email: personal@example.com
+      name: Personal User
+      password: personal  # hashed "personal"
+      role: user
+
+cookie:
+  name: inventory_cookie
+  key: some_signature_key  # Should be a random string
+  expiry_days: 30
