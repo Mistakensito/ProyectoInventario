@@ -6,7 +6,7 @@
         "price": 999.99,
         "stock_quantity": [
             100.0,
-            209.0,
+            20.0,
             0.0
         ],
         "sales_history": [
@@ -217,10 +217,10 @@
     {
         "product_id": "6",
         "name": "test",
-        "category": "test!",
-        "price": 2000.0,
+        "category": "test",
+        "price": 800.0,
         "stock_quantity": [
-            102.0,
+            1020.0,
             22.0,
             220.0
         ],

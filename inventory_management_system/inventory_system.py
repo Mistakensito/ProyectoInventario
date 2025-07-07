@@ -72,9 +72,10 @@ class InventorySystem:
                 if 'last_branch' not in st.session_state:
                     st.session_state.last_branch = st.session_state.branch
 
+                # Recarga datos cuando se cambia de sucursal (para estar sincronizados)
                 if st.session_state.branch != st.session_state.last_branch:
+                    st.session_state.pop("filtered_data", None)
                     st.session_state.pop("original_stock_quantity", None)
-                    st.session_state.pop("original_stock_map", None)
                     st.session_state.last_branch = st.session_state.branch
             with add_column:
                 if st.session_state.get("role", "user") == "admin":
@@ -113,19 +114,25 @@ class InventorySystem:
             if len(filtered_data) == 0:
                 st.write("No se encontró productos.")
             else:
-                original_df = pd.DataFrame(filtered_data).copy()
-
                 # Elige los datos de la sucursal elegida
+                if "original_df" not in st.session_state:
+                    st.session_state.original_df = pd.DataFrame(filtered_data).copy()
+                    st.session_state.original_df["stock_quantity"] = original_df["stock_quantity"].apply(lambda lista: lista[st.session_state.branch])
+                
+                # Guarda temporalmente los stocks por sucursal
                 if "original_stock_quantity" not in st.session_state:
-                    st.session_state.original_stock_quantity = [
+                    # Crea la tabla con datos temporales
+                    st.session_state.original_df = pd.DataFrame(filtered_data).copy()
+                    original_stock_quantity = [
                         {"product_id": row["product_id"], "stock_quantity": row["stock_quantity"]}
-                        for _, row in original_df.iterrows()
+                        for _, row in st.session_state.original_df.iterrows()
                     ]
-                if "original_stock_map" not in st.session_state:
-                    st.session_state.original_stock_map = {item["product_id"]: item["stock_quantity"] for item in st.session_state.original_stock_quantity}
-                original_stock_map = st.session_state.original_stock_map
+                    st.session_state.original_stock_quantity = {item["product_id"]: item["stock_quantity"] for item in original_stock_quantity}
+                    # Solo deja el stock de la sucursal actual
+                    st.session_state.original_df["stock_quantity"] = st.session_state.original_df["stock_quantity"].apply(lambda lista: lista[st.session_state.branch])
 
-                original_df["stock_quantity"] = original_df["stock_quantity"].apply(lambda lista: lista[st.session_state.branch])
+                original_df = st.session_state.original_df
+                original_stock_map = st.session_state.original_stock_quantity
 
                 # Editor interactivo
                 edited_df = st.data_editor(
@@ -155,10 +162,12 @@ class InventorySystem:
                         updated_product["product_id"] = product_id
 
                         # Copia el nuevo stock en la sucursal especifica
+                        # Combinandolo con los stocks de las otras sucursales
                         updated_stock_map = original_stock_map[product_id]
                         updated_stock_map[st.session_state.branch] = updated_product["stock_quantity"]
                         updated_product["stock_quantity"] = updated_stock_map
 
+                        # Añade los cambios
                         self.product_manager.update_product(product_id, updated_product)
 
     def display_add_product_form(self):
