@@ -375,7 +375,7 @@ class InventorySystem:
                         }
 
                         if password:
-                            updated_user["password"] = password  # Remember to hash this!
+                            updated_user["password"] = password
 
                         if new_username != username:
                             self.yaml_manager.delete_user(username)

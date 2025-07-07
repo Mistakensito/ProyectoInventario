@@ -11,6 +11,9 @@ with open('config.yaml') as file:
 # Pre-hashing all plain text passwords once
 stauth.Hasher.hash_passwords(config['credentials'])
 
+with open('config.yaml', 'w') as file:
+    yaml.dump(config, file, default_flow_style=False, allow_unicode=True)
+
 authenticator = stauth.Authenticate(
     config['credentials'],
     config['cookie']['name'],

@@ -1,21 +1,21 @@
 cookie:
-  expiry_days: 7
-  key: inventory_key
+  expiry_days: 30
+  key: some_random_signature_key_12345
   name: inventory_cookie
 credentials:
   usernames:
     LLEEL:
       email: testX@gmail.com
       name: test1XX
-      password: $2b$12$Q.uUO7BGve4C0MaiTjixlOYI1EUVJ.egJyKz6.6O06CqupMXIgZ6e
+      password: $2b$12$pvowXZ0aNJWqzaaNJM0IQ.c/z7U4k3KojqViWZ30rkF6hm2eplICq
       role: admin
     admin:
       email: admin@example.com
       name: NOMBRE TEST
-      password: $2b$12$uFdQX/7Ir.YUu8sRk93GuOdy6kJ806CQGV5Cd2T1CDLrocnFXRnWe
+      password: $2b$12$7WkKRpP3ViXPJR8DUPO2/OqvewlX/YEVrGi4cnCtlE6bSuMF/PJJG
       role: admin
     user:
       email: user@example.com
       name: Regular User
-      password: $2b$12$GmDjUlv1o5/t0etTuNHC7.PuppMBxhgjspfDAeCkYeWtDcEKC1um.
+      password: $2b$12$aHV.eHz3A4HwsFVBX5nYTezyY8Q2Xoj.I4.Ey31gkLBU.ZEkcb6Za
       role: user
