@@ -33,7 +33,15 @@ class InventorySystem:
         return None  # No hay errores
 
     def display_home(self):
-        st.subheader("Sistema de Inventario Masas y Empanadas Ayelén")
+        st.markdown(
+            """
+            <div style='margin: 0px; padding: 0px;'>
+                <h3 style='margin: 0px; padding: 0px;'>Sistema de Inventario Masas y Empanadas Ayelén</h3>
+                <hr style='margin-top: 16px; margin-bottom: 16px;' />
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
     def display_product_management(self):
         st.markdown(
@@ -78,7 +86,8 @@ class InventorySystem:
                 if st.session_state.get("role", "user") == "admin":
                     st.markdown("<div style='margin-top: 28px;'>", unsafe_allow_html=True)
                     if st.button("Añadir producto", key="add_product_button_main"):
-                        st.session_state.page = "add_product"  # Muestra la pagina de añadir productos
+                        st.session_state.page = "add_product"
+                        st.rerun()
                     st.markdown("</div>", unsafe_allow_html=True)
 
             st.markdown(
@@ -135,6 +144,7 @@ class InventorySystem:
 
                 # Comparar y actualizar
                 has_changes = False
+                stock_below_zero = False
 
                 # Calcular días transcurridos desde ultima actualizacion
                 current_seconds = int(time.time())
@@ -179,12 +189,17 @@ class InventorySystem:
                         # Combinandolo con los stocks de las otras sucursales
                         updated_stock_map = original_stock_map[product_id]
                         if updated_product["add_or_sell"] != "":
-                            updated_stock_map[st.session_state.branch] = int(updated_product["stock_quantity"]) + int(updated_product["add_or_sell"])
+                            # Si fue una venta
+                            if int(updated_product["add_or_sell"]) < 0:
+                                updated_product["sales_history"][-1] += abs(int(updated_product["add_or_sell"]))
+                            # Actualiza el stock
+                            new_stock = int(updated_product["stock_quantity"]) + int(updated_product["add_or_sell"])
+                            updated_stock_map[st.session_state.branch] = new_stock
+                            if new_stock < 0:
+                                has_changes = True
+                                stock_below_zero = True
+                                break # Rompe el ciclo antes de que se actualice
                         updated_product["stock_quantity"] = updated_stock_map
-
-                        # Si fue una venta
-                        if int(updated_product["add_or_sell"]) < 0:
-                            updated_product["sales_history"][-1] += abs(int(updated_product["add_or_sell"]))
 
                         # Quitar columnas extras para evitar subirlos a BDD
                         updated_product.pop("add_or_sell", None)
@@ -193,7 +208,12 @@ class InventorySystem:
                         self.product_manager.update_product(product_id, updated_product)
                         has_changes = True
 
-                if has_changes:
+                if stock_below_zero:
+                    # Muestra error si se intento vender mas de lo que se tenia
+                    st.session_state.stock_below_zero = True
+                    st.toast('No puedes quedar en stock negativo.', icon='❌')
+                    st.session_state.pop("stock_below_zero", None)
+                if has_changes and not stock_below_zero:
                     st.rerun()
 
     def display_add_product_form(self):
@@ -222,11 +242,8 @@ class InventorySystem:
             )
 
             # Botones
-            col1, col2 = st.columns(2)
-            with col1:
-                add_button = st.form_submit_button(label='Añadir producto')
-            with col2:
-                cancel_button = st.form_submit_button(label='Cancelar')
+            add_button = st.form_submit_button(label='Añadir producto')
+            cancel_button = st.form_submit_button(label='Cancelar')
 
             if add_button:
                 validation_error = self.validate_fields({
@@ -329,37 +346,72 @@ class InventorySystem:
                 st.rerun()
 
     def display_user_management(self):
-        st.subheader("Control de usuarios")
+        st.markdown(
+            """
+            <div style='margin: 0px; padding: 0px;'>
+                <h3 style='margin: 0px; padding: 0px;'>Control de usuarios</h3>
+                <hr style='margin-top: 16px; margin-bottom: 16px;' />
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
         # Add User button
         if st.session_state.get("role") == "admin":
+            st.markdown("<div style='margin-top: 28px;'>", unsafe_allow_html=True)
             if st.button("Añadir usuario", key="add_user_button"):
                 st.session_state.page = "add_user"
                 st.rerun()
+            st.markdown("</div>", unsafe_allow_html=True)
+
+        st.markdown(
+            """ <hr style='margin-top: 8px; margin-bottom: 8px;' /> """,
+            unsafe_allow_html=True
+        )
 
         # User list with CRUD operations
         users = self.yaml_manager.list_users()
         for username in users:
             user = users[username]
-            col1, col2, col3 = st.columns([4, 2, 2])
+            
+            with st.container():
+                col1, col2, col3 = st.columns([4, 2, 2])
 
-            with col1:
-                st.write(f"**{username}** - {user['role']} ({user['email']})")
+                with col1:
+                    st.markdown(
+                        f"""
+                        <div style="display: flex; flex-direction: column; gap: 4px; padding: 6px 0;">
+                            <strong>👤 {username}</strong>
+                            <div>📧 <a href="mailto:{user["email"]}">{user["email"]}</a></div>
+                            <snap>🔐 Rol: {user["role"]}</snap>
+                        </div>
+                        """,
+                        unsafe_allow_html=True
+                    )
 
-            with col2:
-                if st.button(f"Editar", key=f"edit_{username}"):
-                    st.session_state.editing_user = username
-                    st.session_state.page = "edit_user"
-                    st.rerun()
-
-            with col3:
-                if st.button(f"Eliminar", key=f"delete_{username}"):
-                    try:
-                        self.yaml_manager.delete_user(username)
-                        st.success(f"Usuario {username} eliminado")
+                with col2:
+                    st.markdown("<div style='margin-top: 28px;'>", unsafe_allow_html=True)
+                    if st.button("✏️ Editar", key=f"edit_{username}"):
+                        st.session_state.editing_user = username
+                        st.session_state.page = "edit_user"
                         st.rerun()
-                    except Exception as e:
-                        st.error(str(e))
+                    st.markdown("</div>", unsafe_allow_html=True)
+
+                with col3:
+                    st.markdown("<div style='margin-top: 28px;'>", unsafe_allow_html=True)
+                    if st.button("🗑️ Eliminar", key=f"delete_{username}"):
+                        try:
+                            self.yaml_manager.delete_user(username)
+                            st.success(f"Usuario {username} eliminado")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(str(e))
+                    st.markdown("</div>", unsafe_allow_html=True)
+
+            st.markdown(
+                """ <hr style='margin-top: 8px; margin-bottom: 8px;' /> """,
+                unsafe_allow_html=True
+            )
 
     def display_add_user_form(self):
         st.subheader("Añadir nuevo usuario")
@@ -416,50 +468,73 @@ class InventorySystem:
             role = st.selectbox("Rol", ["admin", "user"],
                                index=0 if user['role'] == "admin" else 1)
 
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.form_submit_button("Guardar cambios"):
-                    try:
-                        updated_user = {
-                            "email": email,
-                            "name": name,
-                            "role": role
-                        }
+            if st.form_submit_button("Guardar cambios"):
+                try:
+                    updated_user = {
+                        "email": email,
+                        "name": name,
+                        "role": role
+                    }
 
-                        if password:
-                            updated_user["password"] = password
+                    if password:
+                        updated_user["password"] = password
 
-                        if new_username != username:
-                            self.yaml_manager.delete_user(username)
-                            self.yaml_manager.add_user(new_username, {**user, **updated_user})
-                        else:
-                            self.yaml_manager.update_user(username, updated_user)
+                    if new_username != username:
+                        self.yaml_manager.delete_user(username)
+                        self.yaml_manager.add_user(new_username, {**user, **updated_user})
+                    else:
+                        self.yaml_manager.update_user(username, updated_user)
 
-                        st.success("Usuario actualizado correctamente!")
-                        st.session_state.page = "user_management"
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Error al actualizar usuario: {str(e)}")
-
-            with col2:
-                if st.form_submit_button("Cancelar"):
+                    st.success("Usuario actualizado correctamente!")
                     st.session_state.page = "user_management"
                     st.rerun()
+                except Exception as e:
+                    st.error(f"Error al actualizar usuario: {str(e)}")
+
+            if st.form_submit_button("Cancelar"):
+                st.session_state.page = "user_management"
+                st.rerun()
 
     def display_role_permission_management(self):
-        st.subheader("Control de roles y permisos.")
+        st.markdown(
+            """
+            <div style='margin: 0px; padding: 0px;'>
+                <h3 style='margin: 0px; padding: 0px;'>Control de roles y permisos</h3>
+                <hr style='margin-top: 16px; margin-bottom: 16px;' />
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
         with st.container():
-            col1, col2 = st.columns([4, 1])
-            with col2:
-                if st.button("Añadir rol", key="unique_add_role_button"):
-                    st.session_state.page = "add_role"
-            filter_column, value_column = st.columns([2, 4])
+
+            filter_column, value_column, button_column = st.columns([2, 4, 1.65])
             with filter_column:
                 filter_option = st.selectbox("Buscar por", ["ID de rol", "Nombre de rol", "Nivel de permiso"])
             with value_column:
                 filter_value = st.text_input(f"Ingresa {filter_option}", "")
+            with button_column:
+                st.markdown("<div style='margin-top: 28px;'>", unsafe_allow_html=True)
+                filter_button = st.button("Filtrar roles", key="filter_roles_button")
+                st.markdown("</div>", unsafe_allow_html=True)
 
-            filter_button = st.button("Filtrar roles", key="filter_roles_button")
+            st.markdown(
+                """ <hr style='margin-top: 8px; margin-bottom: 8px;' /> """,
+                unsafe_allow_html=True
+            )
+
+            if st.session_state.get("role", "user") == "admin":
+                st.markdown("<div style='margin-top: 28px;'>", unsafe_allow_html=True)
+                if st.button("Añadir rol", key="unique_add_role_button"):
+                    st.session_state.page = "add_role"
+                    st.rerun()
+                st.markdown("</div>", unsafe_allow_html=True)
+
+            st.markdown(
+                """ <hr style='margin-top: 8px; margin-bottom: 8px;' /> """,
+                unsafe_allow_html=True
+            )
+
             filtered_data = self.role_permission_manager.roles
 
             if filter_button:
@@ -476,29 +551,52 @@ class InventorySystem:
             else:
                 for idx, role in enumerate(filtered_data):
                     if "role_id" in role:
-                        role_row = f"**{role.get('role_id', 'ID desconocido')}** - {role.get('name', 'Nombre desconocido')}"
-                        col1, col2, col3 = st.columns([4, 2, 2])
+                        with st.container():
+                            col1, col2, col3 = st.columns([4, 2, 2])
 
-                        with col1:
-                            st.write(role_row)
-                        with col2:
-                            if st.button("Actualizar", key=f"update_role_{role['role_id']}_{idx}"):
-                                st.session_state.role_id_to_update = role['role_id']
-                                st.session_state.page = "update_role"
-                        with col3:
-                            if st.button("Eliminar", key=f"delete_role_{role['role_id']}_{idx}"):
-                                self.delete_role(role['role_id'])
+                            with col1:
+                                st.markdown(
+                                    f"""
+                                    <div style="margin-top: 12px; display: flex; flex-direction: column; gap: 4px; padding: 6px 0; justify-content: center; align-items: center">
+                                        {role.get('role_id', 'ID desconocido')}
+                                        <snap>Rol: {role.get('name', 'Nombre desconocido')}</snap>
+                                    </div>
+                                    """,
+                                    unsafe_allow_html=True
+                                )
+
+                            with col2:
+                                st.markdown("<div style='margin-top: 28px;'>", unsafe_allow_html=True)
+                                if st.button("✏️ Editar", key=f"update_role_{role['role_id']}_{idx}"):
+                                    st.session_state.role_id_to_update = role['role_id']
+                                    st.session_state.page = "update_role"
+                                    st.rerun()
+                                st.markdown("</div>", unsafe_allow_html=True)
+
+                            with col3:
+                                st.markdown("<div style='margin-top: 28px;'>", unsafe_allow_html=True)
+                                if st.button("🗑️ Eliminar", key=f"delete_role_{role['role_id']}_{idx}"):
+                                    self.delete_role(role['role_id'])
+                                st.markdown("</div>", unsafe_allow_html=True)
+
+                        st.markdown(
+                            """ <hr style='margin-top: 8px; margin-bottom: 8px;' /> """,
+                            unsafe_allow_html=True
+                        )
                     else:
                         st.error("Rol no tiene ID de rol.")
 
     def display_add_role_form(self):
         st.subheader("Añadir nuevo rol")
 
+        role_id = self.role_permission_manager.get_next_role_id()
+
         with st.form(key='add_role_form'):
-            role_id = st.text_input("ID de rol")
+            role_id = st.text_input("ID de rol (auto)", value=role_id, disabled=True)
             name = st.text_input("Nombre de rol")
             permission_level = st.text_input("Nivel de permiso")
             submit_button = st.form_submit_button(label='Añadir rol')
+            cancel_button = st.form_submit_button(label="Cancelar")
 
             if submit_button:
                 new_role = {
@@ -509,6 +607,9 @@ class InventorySystem:
                 self.role_permission_manager.add_role(new_role)
                 st.success(f"Rol '{name}' añadido correctamente!")
 
+                st.session_state.page = "role_permission_management"
+                st.rerun()
+            elif cancel_button:
                 st.session_state.page = "role_permission_management"
                 st.rerun()
 
@@ -522,23 +623,21 @@ class InventorySystem:
                     name = st.text_input("Nombre del rol", value=role["name"])
                     permission_level = st.text_input("Nivel de permiso", value=role["permission_level"])
                     submit_button = st.form_submit_button(label="Actualizar rol")
-                col1, col2 = st.columns(2)
-                with col2:
-                    cancel_button = st.button("Cancelar")
+                    cancel_button = st.form_submit_button(label="Cancelar")
 
-                if submit_button:
-                    updated_role = {
-                        "role_id": role_id,
-                        "name": name,
-                        "permission_level": permission_level
-                    }
-                    self.role_permission_manager.update_role(role_id, updated_role)
-                    st.success(f"Rol '{name}' actualizado correctamente!")
-                    st.session_state.page = "role_permission_management"
-                    st.rerun()
-                elif cancel_button:
-                    st.session_state.page = "role_permission_management"
-                    st.rerun()
+                    if submit_button:
+                        updated_role = {
+                            "role_id": role_id,
+                            "name": name,
+                            "permission_level": permission_level
+                        }
+                        self.role_permission_manager.update_role(role_id, updated_role)
+                        st.success(f"Rol '{name}' actualizado correctamente!")
+                        st.session_state.page = "role_permission_management"
+                        st.rerun()
+                    elif cancel_button:
+                        st.session_state.page = "role_permission_management"
+                        st.rerun()
 
 
     def delete_role(self, role_id):

@@ -38,3 +38,19 @@ class RolePermission:
             if role["role_id"] == role_id:
                 return role
         return None
+    
+    def get_next_role_id(self):
+        # Obtener el mayor ID numérico directamente
+        ids = []
+        for roles in self.roles:
+            try:
+                ids.append(int(roles["role_id"]))
+            except (ValueError, TypeError):
+                continue
+
+        if not ids:
+            return "1"
+        
+        next_role_id = max(ids) + 1
+
+        return str(next_role_id)
