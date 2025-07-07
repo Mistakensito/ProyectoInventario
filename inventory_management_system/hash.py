@@ -1,12 +1,5 @@
 import streamlit_authenticator as stauth
 
-# List of plain text passwords to hash
-passwords = ['admin123', 'user123']  # Replace with your actual passwords
-
-# Generate hashed passwords
-hashed_passwords = stauth.Hasher(passwords).generate()
-
-# Print the hashed passwords
-print("Hashed passwords:")
-for i, password in enumerate(passwords):
-    print(f"Original: {password} -> Hashed: {hashed_passwords[i]}")
+password = "mypassword123"
+hashed_pw = stauth.Hasher([password]).generate()[0]
+print("Hashed:", hashed_pw)
