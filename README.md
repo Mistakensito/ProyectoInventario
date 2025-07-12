@@ -6,7 +6,8 @@ Sistema de inventario para la empresa Masas y Empanadas Ayelén.
 
 # Requerimientos
 
-* panda
 * Streamlit
+* Streamlit-authenticator
+* pyyaml
 
 Este proyecto utiliza porciones de streamlit-based-python-inventory-system por Fossmentor, con licencia MIT.
